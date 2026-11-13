@@ -9,8 +9,8 @@ export interface FrontendEnv {
   RAZORPAY_KEY_ID?: string;
 }
 
-export const PRODUCTION_BACKEND_HOSTNAME = "stickthebizz.onrender.com";
-export const PRODUCTION_BACKEND_ORIGIN = "https://stickthebizz.onrender.com";
+export const PRODUCTION_BACKEND_HOSTNAME = "stickthebizz-5.onrender.com";
+export const PRODUCTION_BACKEND_ORIGIN = "https://stickthebizz-5.onrender.com";
 
 const appEnvSchema = z.enum(["development", "staging", "preview", "production"], {
   errorMap: () => ({
