@@ -6,8 +6,8 @@ FROM node:20-alpine
 
 WORKDIR /app
 
-# Install OpenSSL 1.1 (required by Prisma) - available in Alpine repos
-RUN apk add --no-cache openssl libssl1.1
+# Install OpenSSL (includes libssl1.1) - available in Alpine repos
+RUN apk add --no-cache openssl
 
 COPY package*.json ./
 RUN npm install
