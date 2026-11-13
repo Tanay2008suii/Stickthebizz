@@ -2,12 +2,12 @@
 # StickTheBizz Backend Dockerfile for Render / Railway / Cloud
 # -------------------------------------------------------------
 
-FROM node:20-bullseye-slim
+FROM node:20-alpine
 
 WORKDIR /app
 
-# Install OpenSSL 1.1 (required by Prisma)
-RUN apt-get update -y && apt-get install -y openssl libssl1.1 && rm -rf /var/lib/apt/lists/*
+# Install OpenSSL 1.1 (required by Prisma) - available in Alpine repos
+RUN apk add --no-cache openssl libssl1.1
 
 COPY package*.json ./
 RUN npm install
@@ -20,4 +20,3 @@ RUN npm run build
 
 EXPOSE 8000
 CMD ["npm", "start"]
-
