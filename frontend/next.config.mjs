@@ -29,7 +29,6 @@ function validateBuildEnvironment() {
 
   const rawApiUrl = process.env.NEXT_PUBLIC_API_URL;
  const PROD_HOSTNAME = "stickthebizz-5.onrender.com";
-  
   if (appEnv === "development") {
     // Development permits http://localhost:8000 default if unset
     if (rawApiUrl && rawApiUrl.includes(PROD_HOSTNAME)) {
