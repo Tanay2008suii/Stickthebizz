@@ -33,18 +33,54 @@ export async function buildServer() {
   });
 
   // 4. Cross-Origin Resource Sharing (CORS) with Credentials
-  const allowedOrigins = env.FRONTEND_URL.split(",").map((u) => u.trim());
+  const rawAllowedOrigins = env.FRONTEND_URL.split(",").map((u) => u.trim()).filter(Boolean);
+  const allowedOrigins = new Set<string>(rawAllowedOrigins);
+
+  // Automatically derive apex and www variants for configured frontend origins
+  for (const originUrl of rawAllowedOrigins) {
+    try {
+      const parsed = new URL(originUrl);
+      if (parsed.hostname.startsWith("www.")) {
+        const apexHost = parsed.hostname.slice(4);
+        allowedOrigins.add(`${parsed.protocol}//${apexHost}${parsed.port ? `:${parsed.port}` : ""}`);
+      } else if (!parsed.hostname.includes("localhost") && !parsed.hostname.includes("127.0.0.1")) {
+        const wwwHost = `www.${parsed.hostname}`;
+        allowedOrigins.add(`${parsed.protocol}//${wwwHost}${parsed.port ? `:${parsed.port}` : ""}`);
+      }
+    } catch {
+      // Ignore invalid URL entries
+    }
+  }
+
+  // Ensure production domains are always explicitly permitted
+  allowedOrigins.add("https://stickthebizz.in");
+  allowedOrigins.add("https://www.stickthebizz.in");
+  allowedOrigins.add("https://stickthebizz.vercel.app");
+
   await server.register(cors, {
     credentials: true,
     origin: (origin, cb) => {
       // Allow requests with no origin (like mobile apps, curl, server-to-server)
       if (!origin) return cb(null, true);
-      if (allowedOrigins.includes(origin) || env.NODE_ENV === "development") {
+      const isAllowed =
+        allowedOrigins.has(origin) ||
+        env.NODE_ENV === "development" ||
+        /^https:\/\/([a-z0-9-]+\.)?stickthebizz\.in$/i.test(origin) ||
+        /^https:\/\/stickthebizz[a-z0-9-]*\.vercel\.app$/i.test(origin);
+
+      if (isAllowed) {
         return cb(null, true);
       }
-      return cb(new Error("Not allowed by CORS"), false);
+      return cb(new Error(`Origin '${origin}' not allowed by CORS`), false);
     },
     methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+    allowedHeaders: [
+      "Content-Type",
+      "Authorization",
+      "X-Requested-With",
+      "Accept",
+      "Origin",
+    ],
   });
 
   // 5. WebSocket Support

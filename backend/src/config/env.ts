@@ -26,7 +26,9 @@ export const envSchema = z
     NODE_ENV: z
       .enum(["development", "production", "test"])
       .default("development"),
-    FRONTEND_URL: z.string().default("http://localhost:3000,https://stickthebizz.in"),
+    FRONTEND_URL: z
+      .string()
+      .default("http://localhost:3000,https://stickthebizz.in,https://www.stickthebizz.in,https://stickthebizz.vercel.app"),
 
     // Supabase PostgreSQL URLs
     DATABASE_URL: z.string().min(1, "DATABASE_URL is required"),

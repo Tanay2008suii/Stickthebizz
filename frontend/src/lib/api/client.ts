@@ -79,7 +79,17 @@ export async function apiClient<T = any>(
     credentials: "include", // Essential for cross-site cookie exchange
   };
 
-  let response = await fetch(url, config);
+  let response: Response;
+  try {
+    response = await fetch(url, config);
+  } catch (err: any) {
+    if (err instanceof TypeError && (err.message === "Failed to fetch" || err.message?.includes("fetch"))) {
+      throw new Error(
+        "Unable to reach the backend service. The server may be waking up from sleep (Render free tier cold start) or blocked by CORS. Please wait a few seconds and try again."
+      );
+    }
+    throw err;
+  }
 
   // If 401 Unauthorized, attempt automatic token refresh (skip for login/refresh routes)
   if (
