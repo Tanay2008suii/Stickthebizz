@@ -4,14 +4,19 @@ import { env } from "./env.js";
 
 let razorpayInstance: Razorpay | null = null;
 
+function cleanKey(val?: string | null): string {
+  if (!val) return "";
+  return val.trim().replace(/^["']|["']$/g, "").trim();
+}
+
 /**
  * Returns initialized Razorpay instance if API keys are configured.
  */
 export function getRazorpayClient(): Razorpay | null {
   if (razorpayInstance) return razorpayInstance;
 
-  const keyId = process.env.RAZORPAY_KEY_ID || env.RAZORPAY_KEY_ID;
-  const keySecret = process.env.RAZORPAY_KEY_SECRET || env.RAZORPAY_KEY_SECRET;
+  const keyId = cleanKey(process.env.RAZORPAY_KEY_ID || env.RAZORPAY_KEY_ID);
+  const keySecret = cleanKey(process.env.RAZORPAY_KEY_SECRET || env.RAZORPAY_KEY_SECRET);
 
   if (!keyId || !keySecret) {
     return null;
@@ -33,7 +38,7 @@ export function verifyRazorpaySignature(params: {
   paymentId: string;
   signature: string;
 }): boolean {
-  const secret = process.env.RAZORPAY_KEY_SECRET || env.RAZORPAY_KEY_SECRET;
+  const secret = cleanKey(process.env.RAZORPAY_KEY_SECRET || env.RAZORPAY_KEY_SECRET);
   if (!secret) {
     console.warn("[RAZORPAY] RAZORPAY_KEY_SECRET not set in environment.");
     return false;

@@ -172,10 +172,14 @@ export async function createSubscriptionOrderService(params: CreateOrderInput) {
     };
   } catch (err: any) {
     console.error("[RAZORPAY ORDER CREATION ERROR]", err);
-    const detail =
+    let detail =
       err?.error?.description ||
       err?.message ||
       "Razorpay order initialization failed. Please check payment credentials.";
+    if (typeof detail === "string" && detail.toLowerCase().includes("authentication failed")) {
+      detail =
+        "Razorpay API authentication failed. The RAZORPAY_KEY_ID or RAZORPAY_KEY_SECRET in Render does not match your active Razorpay Dashboard API Key pair.";
+    }
     return {
       success: false,
       message: `Payment gateway error: ${detail}`,
