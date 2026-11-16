@@ -357,6 +357,7 @@ export const api = {
       category?: string;
       mobile?: string;
       email?: string;
+      password?: string;
     }) =>
       apiClient<any>("/api/v1/subscriptions/activate", {
         method: "POST",

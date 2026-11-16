@@ -5,7 +5,7 @@ import {
   activateHandler,
   checkStatusHandler,
 } from "../controllers/subscription.controller.js";
-import { authenticate } from "../middlewares/auth.middleware.js";
+import { optionalAuthenticate } from "../middlewares/auth.middleware.js";
 
 export async function subscriptionRoutes(app: FastifyInstance) {
   // Promo code validation (public / pre-auth)
@@ -14,8 +14,8 @@ export async function subscriptionRoutes(app: FastifyInstance) {
   // Razorpay order creation (public / pre-auth)
   app.post("/create-order", createOrderHandler);
 
-  // Activate plan (authenticated merchant)
-  app.post("/activate", { preHandler: [authenticate] }, activateHandler);
+  // Activate plan (authenticated merchant or verified Razorpay payment proof)
+  app.post("/activate", { preHandler: [optionalAuthenticate] }, activateHandler);
 
   // Live subscription status & grace period check
   app.get("/status/:merchantId", checkStatusHandler);

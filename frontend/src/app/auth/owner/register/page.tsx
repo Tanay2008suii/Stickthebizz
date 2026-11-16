@@ -247,13 +247,17 @@ function OwnerRegisterForm() {
           category,
           mobile: cleanPhone,
           email: email.trim().toLowerCase(),
+          password,
         });
 
         if (activationRes.success) {
+          if (activationRes.accessToken) {
+            setAccessToken(activationRes.accessToken);
+          }
           setSuccessMessage("✓ Subscription activated! Redirecting to your Counter Terminal...");
           setTimeout(() => {
             window.location.href = "/owner/dashboard";
-          }, 1200);
+          }, 800);
         } else {
           setErrorMessage(activationRes.message || "Activation failed. Please try again.");
           setIsSubmitting(false);
@@ -340,13 +344,17 @@ function OwnerRegisterForm() {
               category,
               mobile: cleanPhone,
               email: email.trim().toLowerCase(),
+              password,
             });
 
             if (activationRes.success) {
+              if (activationRes.accessToken) {
+                setAccessToken(activationRes.accessToken);
+              }
               setSuccessMessage("✓ Account & Subscription Active! Redirecting to terminal...");
               setTimeout(() => {
                 window.location.href = "/owner/dashboard";
-              }, 1200);
+              }, 800);
             } else {
               setErrorMessage(activationRes.message || "Verification failed. Contact support with payment ID: " + response.razorpay_payment_id);
               setIsSubmitting(false);

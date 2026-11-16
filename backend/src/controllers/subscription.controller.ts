@@ -1,4 +1,9 @@
 import type { FastifyRequest, FastifyReply } from "fastify";
+import bcrypt from "bcryptjs";
+import { prisma } from "../config/db.js";
+import { env } from "../config/env.js";
+import { cleanIndianPhone, sanitizeString } from "../utils/sanitize.js";
+import { signAccessToken, signRefreshToken } from "../utils/jwt.js";
 import {
   validatePromoCodeService,
   createSubscriptionOrderService,
@@ -41,11 +46,51 @@ export async function createOrderHandler(req: FastifyRequest, reply: FastifyRepl
 }
 
 export async function activateHandler(req: FastifyRequest, reply: FastifyReply) {
-  if (!req.user) {
-    return reply.status(401).send({ success: false, error: "UNAUTHORIZED" });
-  }
-
   const body = (req.body as any) || {};
+
+  let ownerUserId = req.user?.userId;
+  let resolvedUser: any = null;
+
+  if (ownerUserId) {
+    resolvedUser = await prisma.user.findUnique({ where: { id: ownerUserId } });
+  } else {
+    // If user is not yet logged in on this browser, resolve or provision account via verified payment proof
+    const cleanEmail = (body.email || "").trim().toLowerCase();
+    const cleanPhoneDigits = cleanIndianPhone(body.mobile || "");
+
+    if (!cleanEmail) {
+      return reply.status(400).send({
+        success: false,
+        message: "Email is required for subscription activation.",
+      });
+    }
+
+    resolvedUser = await prisma.user.findFirst({
+      where: {
+        OR: [
+          { email: cleanEmail },
+          ...(cleanPhoneDigits.length === 10 ? [{ phone: cleanPhoneDigits }] : []),
+        ],
+      },
+    });
+
+    if (!resolvedUser) {
+      const rawPassword = body.password || "StoreOwner@123";
+      const passwordHash = await bcrypt.hash(rawPassword, 10);
+      resolvedUser = await prisma.user.create({
+        data: {
+          email: cleanEmail,
+          phone: cleanPhoneDigits || null,
+          fullName: sanitizeString(body.ownerName) || "Store Owner",
+          passwordHash,
+          role: "MERCHANT",
+          isVerified: true,
+        },
+      });
+    }
+
+    ownerUserId = resolvedUser.id;
+  }
 
   try {
     const result = await activateSubscriptionService({
@@ -59,10 +104,57 @@ export async function activateHandler(req: FastifyRequest, reply: FastifyReply) 
       category: body.category,
       mobile: body.mobile,
       email: body.email,
-      ownerUserId: req.user.userId,
+      ownerUserId,
     });
 
-    return reply.status(200).send(result);
+    // Generate fresh session tokens so merchant terminal is immediately authenticated
+    const tokenPayload = {
+      userId: resolvedUser.id,
+      email: resolvedUser.email,
+      role: "MERCHANT" as const,
+    };
+    const accessToken = signAccessToken(tokenPayload);
+    const refreshToken = signRefreshToken(tokenPayload);
+    const thirtyDaysAhead = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
+
+    await prisma.session.create({
+      data: {
+        userId: resolvedUser.id,
+        refreshToken,
+        userAgent: req.headers["user-agent"],
+        ipAddress: req.ip,
+        expiresAt: thirtyDaysAhead,
+      },
+    });
+
+    const isProd = env.NODE_ENV === "production";
+    reply.setCookie("access_token", accessToken, {
+      path: "/",
+      httpOnly: true,
+      secure: isProd,
+      sameSite: isProd ? "none" : "lax",
+      maxAge: 15 * 60,
+    });
+
+    reply.setCookie("refresh_token", refreshToken, {
+      path: "/api/v1/auth",
+      httpOnly: true,
+      secure: isProd,
+      sameSite: isProd ? "none" : "lax",
+      maxAge: 30 * 24 * 60 * 60,
+    });
+
+    return reply.status(200).send({
+      ...result,
+      accessToken,
+      user: {
+        id: resolvedUser.id,
+        email: resolvedUser.email,
+        phone: resolvedUser.phone,
+        fullName: resolvedUser.fullName,
+        role: "MERCHANT",
+      },
+    });
   } catch (err: any) {
     return reply.status(400).send({ success: false, message: err.message });
   }
