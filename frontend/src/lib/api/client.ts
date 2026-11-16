@@ -193,22 +193,34 @@ export const api = {
         method: "POST",
         body: JSON.stringify(data),
       }),
-    ownerRegister: (data: {
+    ownerRegister: async (data: {
       email: string;
       password?: string;
       fullName: string;
       phone?: string;
       shopName?: string;
-    }) =>
-      apiClient<any>("/api/v1/auth/owner/register", {
+    }) => {
+      const res = await apiClient<any>("/api/v1/auth/owner/register", {
         method: "POST",
         body: JSON.stringify(data),
-      }),
-    ownerLogin: (data: { email: string; password?: string; pin?: string }) =>
-      apiClient<any>("/api/v1/auth/owner/login", {
+      });
+      const token = res?.data?.accessToken || res?.accessToken;
+      if (token) {
+        setAccessToken(token);
+      }
+      return res;
+    },
+    ownerLogin: async (data: { email: string; password?: string; pin?: string }) => {
+      const res = await apiClient<any>("/api/v1/auth/owner/login", {
         method: "POST",
         body: JSON.stringify(data),
-      }),
+      });
+      const token = res?.data?.accessToken || res?.accessToken;
+      if (token) {
+        setAccessToken(token);
+      }
+      return res;
+    },
     getMe: () => apiClient<any>("/api/v1/auth/me"),
     me: () => apiClient<any>("/api/v1/auth/me"),
     logout: () => apiClient<any>("/api/v1/auth/logout", { method: "POST" }),

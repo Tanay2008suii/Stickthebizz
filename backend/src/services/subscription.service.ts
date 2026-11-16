@@ -144,31 +144,43 @@ export async function createSubscriptionOrderService(params: CreateOrderInput) {
     };
   }
 
-  const receiptId = `stb_${params.planId.toLowerCase()}_${Date.now().toString().slice(-8)}`;
-  const order = await razorpay.orders.create({
-    amount: pricing.finalAmountPaise,
-    currency: "INR",
-    receipt: receiptId,
-    notes: {
-      plan: params.planId,
-      shopName: sanitizeString(params.shopName),
-      email: params.email.trim().toLowerCase(),
-      mobile: cleanIndianPhone(params.mobile),
-      promoCode: params.promoCode || "NONE",
-    },
-  });
+  try {
+    const receiptId = `stb_${params.planId.toLowerCase()}_${Date.now().toString().slice(-8)}`;
+    const order = await razorpay.orders.create({
+      amount: pricing.finalAmountPaise,
+      currency: "INR",
+      receipt: receiptId,
+      notes: {
+        plan: params.planId,
+        shopName: sanitizeString(params.shopName),
+        email: params.email.trim().toLowerCase(),
+        mobile: cleanIndianPhone(params.mobile),
+        promoCode: params.promoCode || "NONE",
+      },
+    });
 
-  return {
-    success: true,
-    isFree: false,
-    orderId: order.id,
-    amount: pricing.finalAmount,
-    amountPaise: pricing.finalAmountPaise,
-    currency: "INR",
-    keyId: env.RAZORPAY_KEY_ID,
-    plan: pricing.plan,
-    pricing,
-  };
+    return {
+      success: true,
+      isFree: false,
+      orderId: order.id,
+      amount: pricing.finalAmount,
+      amountPaise: pricing.finalAmountPaise,
+      currency: "INR",
+      keyId: env.RAZORPAY_KEY_ID,
+      plan: pricing.plan,
+      pricing,
+    };
+  } catch (err: any) {
+    console.error("[RAZORPAY ORDER CREATION ERROR]", err);
+    const detail =
+      err?.error?.description ||
+      err?.message ||
+      "Razorpay order initialization failed. Please check payment credentials.";
+    return {
+      success: false,
+      message: `Payment gateway error: ${detail}`,
+    };
+  }
 }
 
 /**

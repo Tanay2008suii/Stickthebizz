@@ -22,7 +22,7 @@ import {
 } from "lucide-react";
 import Logo from "@/components/Logo";
 import { useToast } from "@/components/ui/Toast";
-import { api } from "@/lib/api/client";
+import { api, setAccessToken } from "@/lib/api/client";
 import { useAuth } from "@/context/AuthContext";
 import { frontendEnv } from "@/lib/config/env";
 import {
@@ -213,6 +213,9 @@ function OwnerRegisterForm() {
             });
             if (regRes && regRes.data?.user) {
               registeredUser = regRes.data.user;
+              if (regRes.data?.accessToken) {
+                setAccessToken(regRes.data.accessToken);
+              }
             }
           } catch (regErr: any) {
             // If already registered, attempt login
@@ -223,6 +226,9 @@ function OwnerRegisterForm() {
               });
               if (loginRes && loginRes.data?.user) {
                 registeredUser = loginRes.data.user;
+                if (loginRes.data?.accessToken) {
+                  setAccessToken(loginRes.data.accessToken);
+                }
               }
             } catch {
               setErrorMessage(regErr.message || "Registration failed.");
@@ -301,6 +307,9 @@ function OwnerRegisterForm() {
                 });
                 if (regRes && regRes.data?.user) {
                   registeredUser = regRes.data.user;
+                  if (regRes.data?.accessToken) {
+                    setAccessToken(regRes.data.accessToken);
+                  }
                 }
               } catch {
                 try {
@@ -310,6 +319,9 @@ function OwnerRegisterForm() {
                   });
                   if (loginRes && loginRes.data?.user) {
                     registeredUser = loginRes.data.user;
+                    if (loginRes.data?.accessToken) {
+                      setAccessToken(loginRes.data.accessToken);
+                    }
                   }
                 } catch {
                   // continue to activation
