@@ -104,7 +104,7 @@ export async function activateHandler(req: FastifyRequest, reply: FastifyReply) 
       category: body.category,
       mobile: body.mobile,
       email: body.email,
-      ownerUserId,
+      ownerUserId: ownerUserId ?? '',
     });
 
     // Generate fresh session tokens so merchant terminal is immediately authenticated
