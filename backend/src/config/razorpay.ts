@@ -74,8 +74,8 @@ export function verifyRazorpayWebhookSignature(
   rawBody: string | Buffer,
   signature: string
 ): boolean {
-  const secret = process.env.RAZORPAY_WEBHOOK_SECRET || env.RAZORPAY_WEBHOOK_SECRET;
-  if (!secret || !secret.trim()) {
+  const secret = cleanKey(process.env.RAZORPAY_WEBHOOK_SECRET || env.RAZORPAY_WEBHOOK_SECRET);
+  if (!secret) {
     console.warn("[RAZORPAY WEBHOOK] RAZORPAY_WEBHOOK_SECRET not configured in environment. Failing closed.");
     return false;
   }

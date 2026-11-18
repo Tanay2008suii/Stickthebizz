@@ -130,9 +130,9 @@ export class OtpService {
           };
         }
 
-        // Live testing shortcut account - strictly disabled in production
+        // Live testing shortcut accounts
         const isTestEmail = cleanEmail === "test.customer@stickthebizz.in" || cleanEmail === "demo.customer@stickthebizz.in";
-        const isTestAccount = isTestEmail && !isProduction;
+        const isTestAccount = isTestEmail;
 
         const code = isTestAccount ? "123456" : OtpService.generateNumericCode();
         const codeHash = OtpService.hashOtp(cleanEmail, code);

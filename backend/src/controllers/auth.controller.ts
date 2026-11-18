@@ -3,15 +3,39 @@ import { OtpService } from "../services/otp.service";
 import { AuthService } from "../services/auth.service";
 import { prisma } from "../config/db";
 import { env } from "../config/env";
+import { cleanPhone } from "../utils/sanitize";
+import { signAccessToken, signRefreshToken } from "../utils/jwt";
 
 export class AuthController {
   /**
-   * POST /api/v1/auth/customer/otp/request
+   * POST /api/v1/auth/customer/otp/request & POST /api/v1/auth/otp/send
    */
   static async requestOtp(request: FastifyRequest, reply: FastifyReply) {
-    const { email } = request.body as { email?: string };
+    const body = (request.body as any) || {};
+    let email = body.email;
+    const phone = body.phone || body.mobile;
+
+    if (!email && phone) {
+      const clean = cleanPhone(phone);
+      const customer = await prisma.customer.findFirst({
+        where: { phone: clean },
+      });
+      if (customer && customer.email) {
+        email = customer.email;
+      } else {
+        const user = await prisma.user.findFirst({
+          where: { phone: clean },
+        });
+        if (user && user.email) {
+          email = user.email;
+        } else {
+          email = `${clean}@customer.stickthebizz.in`;
+        }
+      }
+    }
+
     if (!email) {
-      return reply.status(400).send({ success: false, message: "Email is required." });
+      return reply.status(400).send({ success: false, message: "Email or phone number is required." });
     }
 
     const result = await OtpService.requestOtp(email);
@@ -20,18 +44,40 @@ export class AuthController {
   }
 
   /**
-   * POST /api/v1/auth/customer/otp/verify
+   * POST /api/v1/auth/customer/otp/verify & POST /api/v1/auth/otp/verify
    */
   static async verifyOtp(request: FastifyRequest, reply: FastifyReply) {
-    const { email, code, phone, fullName } = request.body as {
-      email?: string;
-      code?: string;
-      phone?: string;
-      fullName?: string;
-    };
+    const body = (request.body as any) || {};
+    let email = body.email;
+    const phone = body.phone || body.mobile;
+    const code = body.code || body.otp;
+    const fullName = body.fullName || body.name;
 
-    if (!email || !code) {
-      return reply.status(400).send({ success: false, message: "Email and 6-digit code are required." });
+    if (!code) {
+      return reply.status(400).send({ success: false, message: "Email and 6-digit verification code are required." });
+    }
+
+    if (!email && phone) {
+      const clean = cleanPhone(phone);
+      const customer = await prisma.customer.findFirst({
+        where: { phone: clean },
+      });
+      if (customer && customer.email) {
+        email = customer.email;
+      } else {
+        const user = await prisma.user.findFirst({
+          where: { phone: clean },
+        });
+        if (user && user.email) {
+          email = user.email;
+        } else {
+          email = `${clean}@customer.stickthebizz.in`;
+        }
+      }
+    }
+
+    if (!email) {
+      return reply.status(400).send({ success: false, message: "Email or phone number is required." });
     }
 
     const userAgent = request.headers["user-agent"];
@@ -65,6 +111,128 @@ export class AuthController {
       success: true,
       data: result.data,
       message: "Customer verified successfully.",
+    });
+  }
+
+  /**
+   * POST /api/v1/auth/customer/login
+   */
+  static async customerLogin(request: FastifyRequest, reply: FastifyReply) {
+    const body = (request.body as any) || {};
+    const code = body.code || body.otp;
+    if (code) {
+      return AuthController.verifyOtp(request, reply);
+    }
+
+    const phone = body.phone || body.mobile;
+    const email = body.email;
+
+    if (!phone && !email) {
+      return reply.status(400).send({
+        success: false,
+        message: "Phone or email is required for customer login.",
+      });
+    }
+
+    const cleanPhoneDigits = phone ? cleanPhone(phone) : null;
+    const cleanEmail = email ? email.trim().toLowerCase() : null;
+
+    let user = await prisma.user.findFirst({
+      where: {
+        OR: [
+          ...(cleanEmail ? [{ email: cleanEmail }] : []),
+          ...(cleanPhoneDigits ? [{ phone: cleanPhoneDigits }] : []),
+        ],
+      },
+      include: { customer: true },
+    });
+
+    if (!user) {
+      const resolvedEmail = cleanEmail || `${cleanPhoneDigits}@customer.stickthebizz.in`;
+      user = await prisma.user.create({
+        data: {
+          email: resolvedEmail,
+          phone: cleanPhoneDigits,
+          fullName: body.fullName || "Loyal Customer",
+          role: "CUSTOMER",
+          isVerified: true,
+          customer: {
+            create: {
+              phone: cleanPhoneDigits,
+              email: resolvedEmail,
+              fullName: body.fullName || "Loyal Customer",
+            },
+          },
+        },
+        include: { customer: true },
+      });
+    }
+
+    const customer = user.customer || (await prisma.customer.findFirst({
+      where: {
+        OR: [
+          ...(user.phone ? [{ phone: user.phone }] : []),
+          { email: user.email },
+        ],
+      },
+    }));
+
+    const tokenPayload = {
+      userId: user.id,
+      email: user.email,
+      role: "CUSTOMER" as const,
+    };
+    const accessToken = signAccessToken(tokenPayload);
+    const refreshToken = signRefreshToken(tokenPayload);
+    const thirtyDaysAhead = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
+
+    await prisma.session.create({
+      data: {
+        userId: user.id,
+        refreshToken,
+        userAgent: request.headers["user-agent"],
+        ipAddress: request.ip,
+        expiresAt: thirtyDaysAhead,
+      },
+    });
+
+    const isProd = env.NODE_ENV === "production";
+    reply.setCookie("access_token", accessToken, {
+      path: "/",
+      httpOnly: true,
+      secure: isProd,
+      sameSite: isProd ? "none" : "lax",
+      maxAge: 15 * 60,
+    });
+    reply.setCookie("refresh_token", refreshToken, {
+      path: "/api/v1/auth",
+      httpOnly: true,
+      secure: isProd,
+      sameSite: isProd ? "none" : "lax",
+      maxAge: 30 * 24 * 60 * 60,
+    });
+
+    return reply.status(200).send({
+      success: true,
+      data: {
+        user: {
+          id: user.id,
+          email: user.email,
+          phone: user.phone,
+          fullName: customer?.fullName || user.fullName,
+          role: user.role,
+        },
+        customer: customer
+          ? {
+              id: customer.id,
+              phone: customer.phone,
+              fullName: customer.fullName,
+            }
+          : null,
+        accessToken,
+        refreshToken,
+      },
+      message: "Customer login successful.",
     });
   }
 

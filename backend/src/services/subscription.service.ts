@@ -267,7 +267,30 @@ export async function activateSubscriptionService(params: ActivationInput) {
     });
   }
 
-  // 4. Audit Log
+  // 4. Record entry in merchant_subscriptions
+  try {
+    await prisma.merchantSubscription.create({
+      data: {
+        merchantId: merchant.id,
+        ownerId: params.ownerUserId || undefined,
+        plan: params.planId,
+        amount: pricing.finalAmount,
+        currency: "INR",
+        status: "ACTIVE",
+        razorpayOrderId: params.orderId || null,
+        razorpayPaymentId: params.paymentId || null,
+        razorpaySignature: params.signature || null,
+        promoCodeApplied: params.promoCode || null,
+        discountAmount: pricing.discountAmount,
+        startsAt: now,
+        expiresAt: expiresAt,
+      },
+    });
+  } catch (subErr) {
+    console.error("[SUBSCRIPTION] Failed to record merchant_subscriptions history:", subErr);
+  }
+
+  // 5. Audit Log
   await prisma.auditLog.create({
     data: {
       actorType: "MERCHANT",

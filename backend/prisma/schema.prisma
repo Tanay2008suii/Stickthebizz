@@ -61,9 +61,10 @@ model User {
   createdAt    DateTime  @default(now()) @map("created_at") @db.Timestamptz
   updatedAt    DateTime  @updatedAt @map("updated_at") @db.Timestamptz
 
-  sessions  Session[]
-  merchants Merchant[]
-  customer  Customer?
+  sessions      Session[]
+  merchants     Merchant[]
+  customer      Customer?
+  subscriptions MerchantSubscription[]
 
   @@map("users")
 }
@@ -121,9 +122,10 @@ model Merchant {
   razorpayOrderId       String?            @map("razorpay_order_id") @db.VarChar(100)
   createdAt             DateTime           @default(now()) @map("created_at") @db.Timestamptz
 
-  owner       User?        @relation(fields: [ownerId], references: [id], onDelete: SetNull)
-  visits      Visit[]
-  redemptions Redemption[]
+  owner         User?                  @relation(fields: [ownerId], references: [id], onDelete: SetNull)
+  visits        Visit[]
+  redemptions   Redemption[]
+  subscriptions MerchantSubscription[]
 
   @@map("merchants")
 }
@@ -217,5 +219,30 @@ model AuditLog {
   createdAt  DateTime @default(now()) @map("created_at") @db.Timestamptz
 
   @@map("audit_logs")
+}
+
+model MerchantSubscription {
+  id                String             @id @default(uuid()) @db.Uuid
+  merchantId        String             @map("merchant_id") @db.Uuid
+  ownerId           String?            @map("owner_id") @db.Uuid
+  plan              SubscriptionPlanId
+  amount            Decimal            @db.Decimal(10, 2)
+  currency          String             @default("INR") @db.VarChar(10)
+  status            SubscriptionStatus @default(ACTIVE)
+  razorpayOrderId   String?            @map("razorpay_order_id") @db.VarChar(100)
+  razorpayPaymentId String?            @map("razorpay_payment_id") @db.VarChar(100)
+  razorpaySignature String?            @map("razorpay_signature") @db.VarChar(255)
+  promoCodeApplied  String?            @map("promo_code_applied") @db.VarChar(50)
+  discountAmount    Decimal            @default(0) @map("discount_amount") @db.Decimal(10, 2)
+  startsAt          DateTime           @default(now()) @map("starts_at") @db.Timestamptz
+  expiresAt         DateTime           @map("expires_at") @db.Timestamptz
+  createdAt         DateTime           @default(now()) @map("created_at") @db.Timestamptz
+
+  merchant Merchant @relation(fields: [merchantId], references: [id], onDelete: Cascade)
+  owner    User?    @relation(fields: [ownerId], references: [id], onDelete: SetNull)
+
+  @@index([merchantId])
+  @@index([ownerId])
+  @@map("merchant_subscriptions")
 }
 

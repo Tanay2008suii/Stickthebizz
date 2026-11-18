@@ -17,6 +17,7 @@ export async function registerApiRoutes(app: FastifyInstance) {
   await app.register(scanRoutes, { prefix: "/api/v1/scans" });
   await app.register(customerRoutes, { prefix: "/api/v1/customers" });
   await app.register(merchantRoutes, { prefix: "/api/v1/merchant" });
+  await app.register(merchantRoutes, { prefix: "/api/v1/merchants" });
   await app.register(subscriptionRoutes, { prefix: "/api/v1/subscriptions" });
   await app.register(webhookRoutes, { prefix: "/api/v1/webhooks" });
   await app.register(cronRoutes, { prefix: "/api/v1/cron" });

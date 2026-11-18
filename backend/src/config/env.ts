@@ -53,12 +53,18 @@ export const envSchema = z
     // Razorpay
     RAZORPAY_KEY_ID: z
       .string({ required_error: "RAZORPAY_KEY_ID is required" })
-      .min(1, "RAZORPAY_KEY_ID is required and cannot be empty")
-      .refine((val) => !/\s/.test(val), {
-        message: "RAZORPAY_KEY_ID must not contain whitespace",
+      .transform((val) => val.trim().replace(/^["']|["']$/g, "").trim())
+      .refine((val) => val.length > 0, {
+        message: "RAZORPAY_KEY_ID is required and cannot be empty",
       }),
-    RAZORPAY_KEY_SECRET: z.string().default(""),
-    RAZORPAY_WEBHOOK_SECRET: z.string().default(""),
+    RAZORPAY_KEY_SECRET: z
+      .string()
+      .default("")
+      .transform((val) => val.trim().replace(/^["']|["']$/g, "").trim()),
+    RAZORPAY_WEBHOOK_SECRET: z
+      .string()
+      .default("")
+      .transform((val) => val.trim().replace(/^["']|["']$/g, "").trim()),
 
     // Cron Secret (No predictable defaults)
     CRON_SECRET: z
@@ -68,25 +74,14 @@ export const envSchema = z
   .superRefine((data, ctx) => {
     // 1. Razorpay Key Environment Separation
     const key = data.RAZORPAY_KEY_ID;
-    if (key && key === key.trim()) {
-      if (data.APP_ENV === "production") {
-        if (!key.startsWith("rzp_live_")) {
-          ctx.addIssue({
-            code: z.ZodIssueCode.custom,
-            path: ["RAZORPAY_KEY_ID"],
-            message:
-              "In production environment (APP_ENV=production), RAZORPAY_KEY_ID must begin with 'rzp_live_'. Test credentials ('rzp_test_') are strictly prohibited.",
-          });
-        }
-      } else {
-        // development, test, staging
-        if (!key.startsWith("rzp_test_")) {
-          ctx.addIssue({
-            code: z.ZodIssueCode.custom,
-            path: ["RAZORPAY_KEY_ID"],
-            message: `In ${data.APP_ENV} environment (APP_ENV=${data.APP_ENV}), RAZORPAY_KEY_ID must begin with 'rzp_test_'. Live credentials ('rzp_live_') are strictly prohibited.`,
-          });
-        }
+    if (key) {
+      if (!key.startsWith("rzp_live_") && !key.startsWith("rzp_test_")) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ["RAZORPAY_KEY_ID"],
+          message:
+            "RAZORPAY_KEY_ID must begin with 'rzp_live_' (for production live payments) or 'rzp_test_' (for test mode).",
+        });
       }
     }
 

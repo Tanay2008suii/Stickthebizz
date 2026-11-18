@@ -1,4 +1,5 @@
 import type { FastifyRequest, FastifyReply } from "fastify";
+import { prisma } from "../config/db.js";
 import {
   getMerchantProfile,
   getMerchantBySlug,
@@ -95,6 +96,63 @@ export async function updatePinHandler(req: FastifyRequest, reply: FastifyReply)
 
   try {
     const updated = await updateTerminalPin(body.merchantId, req.user.userId, body.pin);
+    return reply.status(200).send({ success: true, merchant: updated });
+  } catch (err: any) {
+    return reply.status(400).send({ success: false, error: err.message });
+  }
+}
+
+export async function listMerchantsHandler(req: FastifyRequest, reply: FastifyReply) {
+  try {
+    const merchants = await prisma.merchant.findMany({
+      select: {
+        id: true,
+        name: true,
+        slug: true,
+        category: true,
+        minSpend: true,
+        visitsRequired: true,
+        rewardName: true,
+        subscriptionStatus: true,
+        createdAt: true,
+      },
+      orderBy: { createdAt: "desc" },
+      take: 50,
+    });
+    return reply.status(200).send({ success: true, merchants });
+  } catch (err: any) {
+    return reply.status(500).send({ success: false, error: err.message });
+  }
+}
+
+export async function updateProfileHandler(req: FastifyRequest, reply: FastifyReply) {
+  if (!req.user) {
+    return reply.status(401).send({ success: false, error: "UNAUTHORIZED" });
+  }
+
+  const merchant = await prisma.merchant.findFirst({
+    where: { ownerId: req.user.userId },
+  });
+
+  if (!merchant) {
+    return reply.status(404).send({ success: false, error: "Merchant not found for current user" });
+  }
+
+  const body = (req.body as any) || {};
+
+  try {
+    const updated = await updateMerchantRules({
+      merchantId: merchant.id,
+      ownerUserId: req.user.userId,
+      name: body.name,
+      category: body.category,
+      minSpend: body.minSpend !== undefined ? Number(body.minSpend) : undefined,
+      visitsRequired: body.visitsRequired !== undefined ? Number(body.visitsRequired) : undefined,
+      rewardName: body.rewardName,
+      validityDays: body.validityDays !== undefined ? Number(body.validityDays) : undefined,
+      redemptionPin: body.redemptionPin,
+    });
+
     return reply.status(200).send({ success: true, merchant: updated });
   } catch (err: any) {
     return reply.status(400).send({ success: false, error: err.message });

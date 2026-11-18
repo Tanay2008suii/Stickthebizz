@@ -24,7 +24,10 @@ export async function buildServer() {
     global: false,
     encoding: "utf8",
     runFirst: true,
-    routes: ["/api/v1/webhooks/razorpay"],
+    routes: [
+      "/api/v1/webhooks/razorpay",
+      "/api/v1/subscriptions/webhooks/razorpay",
+    ],
   });
 
   // 3. Cookie Support

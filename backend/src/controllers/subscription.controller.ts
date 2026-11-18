@@ -4,12 +4,21 @@ import { prisma } from "../config/db.js";
 import { env } from "../config/env.js";
 import { cleanIndianPhone, sanitizeString } from "../utils/sanitize.js";
 import { signAccessToken, signRefreshToken } from "../utils/jwt.js";
+import { SUBSCRIPTION_PLANS } from "../utils/pricing.js";
 import {
   validatePromoCodeService,
   createSubscriptionOrderService,
   activateSubscriptionService,
   checkMerchantSubscriptionStatus,
 } from "../services/subscription.service.js";
+
+export async function getPlansHandler(req: FastifyRequest, reply: FastifyReply) {
+  const plans = Object.values(SUBSCRIPTION_PLANS);
+  return reply.status(200).send({
+    success: true,
+    plans,
+  });
+}
 
 export async function validatePromoHandler(req: FastifyRequest, reply: FastifyReply) {
   const body = (req.body as any) || {};
