@@ -28,13 +28,16 @@ function validateBuildEnvironment() {
   }
 
   const rawApiUrl = process.env.NEXT_PUBLIC_API_URL;
-const PROD_HOSTNAME = "stickthebizz-5.onrender.com";
+  const ALLOWED_PROD_HOSTNAMES = [
+    "stickthebizz.onrender.com",
+    "stickthebizz-5.onrender.com",
+  ];
   
   if (appEnv === "development") {
     // Development permits http://localhost:8000 default if unset
-    if (rawApiUrl && rawApiUrl.includes(PROD_HOSTNAME)) {
+    if (rawApiUrl && ALLOWED_PROD_HOSTNAMES.some((h) => rawApiUrl.includes(h))) {
       throw new Error(
-        `❌ [BUILD SAFETY ERROR] Development environment cannot target the production backend (${PROD_HOSTNAME}).`
+        `❌ [BUILD SAFETY ERROR] Development environment cannot target the production backend.`
       );
     }
     return;
@@ -72,17 +75,17 @@ const PROD_HOSTNAME = "stickthebizz-5.onrender.com";
   const hostname = parsedUrl.hostname.toLowerCase();
 
   if (appEnv === "staging" || appEnv === "preview") {
-    if (hostname === PROD_HOSTNAME) {
+    if (ALLOWED_PROD_HOSTNAMES.includes(hostname)) {
       throw new Error(
-        `❌ [BUILD SAFETY ERROR] Security Violation: '${appEnv}' build is strictly forbidden from connecting to the production backend (${PROD_HOSTNAME}).`
+        `❌ [BUILD SAFETY ERROR] Security Violation: '${appEnv}' build is strictly forbidden from connecting to the production backend (${hostname}).`
       );
     }
   }
 
   if (appEnv === "production") {
-    if (hostname !== PROD_HOSTNAME) {
+    if (!ALLOWED_PROD_HOSTNAMES.includes(hostname)) {
       throw new Error(
-        `❌ [BUILD SAFETY ERROR] Production build must target '${PROD_HOSTNAME}'. Received: '${hostname}'`
+        `❌ [BUILD SAFETY ERROR] Production build must target one of: ${ALLOWED_PROD_HOSTNAMES.join(", ")}. Received: '${hostname}'`
       );
     }
   }
@@ -105,9 +108,9 @@ const PROD_HOSTNAME = "stickthebizz-5.onrender.com";
       );
     }
     const wsHostname = parsedWsUrl.hostname.toLowerCase();
-    if ((appEnv === "staging" || appEnv === "preview") && wsHostname === PROD_HOSTNAME) {
+    if ((appEnv === "staging" || appEnv === "preview") && ALLOWED_PROD_HOSTNAMES.includes(wsHostname)) {
       throw new Error(
-        `❌ [BUILD SAFETY ERROR] Security Violation: '${appEnv}' build cannot target production WebSocket (${PROD_HOSTNAME}).`
+        `❌ [BUILD SAFETY ERROR] Security Violation: '${appEnv}' build cannot target production WebSocket (${wsHostname}).`
       );
     }
   }
