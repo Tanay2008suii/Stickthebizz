@@ -9,8 +9,13 @@ export interface FrontendEnv {
   RAZORPAY_KEY_ID?: string;
 }
 
-export const PRODUCTION_BACKEND_HOSTNAME = "stickthebizz-5.onrender.com";
-export const PRODUCTION_BACKEND_ORIGIN = "https://stickthebizz-5.onrender.com";
+export const PRODUCTION_BACKEND_HOSTNAME = "stickthebizz.onrender.com";
+export const PRODUCTION_BACKEND_ORIGIN = "https://stickthebizz.onrender.com";
+
+export const ALLOWED_PRODUCTION_BACKEND_HOSTNAMES = [
+  "stickthebizz.onrender.com",
+  "stickthebizz-5.onrender.com",
+];
 
 const appEnvSchema = z.enum(["development", "staging", "preview", "production"], {
   errorMap: () => ({
@@ -133,17 +138,17 @@ export function validateFrontendEnv(
 
   // 3. Cross-Environment Backend Isolation Enforcement
   if (appEnv === "staging" || appEnv === "preview" || appEnv === "development") {
-    if (hostname === PRODUCTION_BACKEND_HOSTNAME) {
+    if (ALLOWED_PRODUCTION_BACKEND_HOSTNAMES.includes(hostname)) {
       throw new Error(
-        `❌ [SECURITY VIOLATION] '${appEnv}' frontend is strictly forbidden from connecting to the production backend (${PRODUCTION_BACKEND_HOSTNAME}).`
+        `❌ [SECURITY VIOLATION] '${appEnv}' frontend is strictly forbidden from connecting to the production backend (${hostname}).`
       );
     }
   }
 
   if (appEnv === "production") {
-    if (hostname !== PRODUCTION_BACKEND_HOSTNAME) {
+    if (!ALLOWED_PRODUCTION_BACKEND_HOSTNAMES.includes(hostname)) {
       throw new Error(
-        `❌ [FRONTEND ENV CONFIG ERROR] Production frontend must explicitly target the production backend (${PRODUCTION_BACKEND_HOSTNAME}). Received: '${hostname}'`
+        `❌ [FRONTEND ENV CONFIG ERROR] Production frontend must explicitly target a valid production backend (${ALLOWED_PRODUCTION_BACKEND_HOSTNAMES.join(", ")}). Received: '${hostname}'`
       );
     }
   }
@@ -192,9 +197,9 @@ export function validateFrontendEnv(
     }
 
     const wsHostname = parsedWsUrl.hostname.toLowerCase();
-    if ((appEnv === "staging" || appEnv === "preview") && wsHostname === PRODUCTION_BACKEND_HOSTNAME) {
+    if ((appEnv === "staging" || appEnv === "preview") && ALLOWED_PRODUCTION_BACKEND_HOSTNAMES.includes(wsHostname)) {
       throw new Error(
-        `❌ [SECURITY VIOLATION] '${appEnv}' frontend cannot configure WebSocket connection to production backend (${PRODUCTION_BACKEND_HOSTNAME}).`
+        `❌ [SECURITY VIOLATION] '${appEnv}' frontend cannot configure WebSocket connection to production backend (${wsHostname}).`
       );
     }
 
