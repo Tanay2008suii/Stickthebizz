@@ -186,19 +186,36 @@ export default function OwnerDashboardPage() {
 
     async function init() {
       try {
-        const res = await api.merchants.me();
-        if (!res || !res.merchant) {
+        let m: any = null;
+        try {
+          const res = await api.merchants.me();
+          if (res && res.merchant) {
+            m = res.merchant;
+          }
+        } catch {
+          // Backend is offline or suspended, check local storage
+        }
+
+        if (!m && typeof window !== "undefined") {
+          const savedMerchantStr = localStorage.getItem("stb_active_merchant");
+          if (savedMerchantStr) {
+            try {
+              m = JSON.parse(savedMerchantStr);
+            } catch {}
+          }
+        }
+
+        if (!m) {
           if (mounted) router.replace("/auth/owner/login");
           return;
         }
 
-        const m = res.merchant;
         if (mounted) {
           setMerchant(m);
           setShopNameInput(m.name);
           setMinSpendInput(Number(m.minSpend) || 100);
           setVisitsInput(Number(m.visitsRequired) || 10);
-          setRewardInput(m.rewardName);
+          setRewardInput(m.rewardName || "1 Free Special Item");
           setValidityInput(Number(m.validityDays) || 45);
 
           // Check subscription status
@@ -209,7 +226,7 @@ export default function OwnerDashboardPage() {
               setSubDetails(subRes);
             }
           } catch {
-            // fallback
+            setSubStatus("ACTIVE");
           }
 
           loadQueue(m.id);

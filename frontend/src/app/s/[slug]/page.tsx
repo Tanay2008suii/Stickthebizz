@@ -17,12 +17,31 @@ async function getMerchant(slug: string) {
     const res = await fetch(`${frontendEnv.API_BASE_URL}/api/v1/merchant/slug/${encodeURIComponent(slug)}`, {
       cache: "no-store",
     });
-    if (!res.ok) return null;
-    const json = await res.json();
-    return json.merchant || json.data || json;
+    if (res.ok) {
+      const json = await res.json();
+      return json.merchant || json.data || json;
+    }
   } catch {
-    return null;
+    // fallback below
   }
+
+  // Built-in fallback for official demo cafe
+  if (slug === "demo-cafe") {
+    return {
+      id: "demo-cafe-store-uuid",
+      name: "StickTheBizz Demo Cafe",
+      slug: "demo-cafe",
+      category: "Cafe / Chai",
+      minSpend: 100,
+      visitsRequired: 5,
+      rewardName: "Free Cold Coffee",
+      validityDays: 30,
+      subscriptionStatus: "ACTIVE",
+      redemptionPin: "2468",
+    };
+  }
+
+  return null;
 }
 
 export default async function ShopSlugPage({ params }: Props) {
