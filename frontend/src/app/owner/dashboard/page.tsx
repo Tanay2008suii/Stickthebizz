@@ -735,20 +735,20 @@ export default function OwnerDashboardPage() {
                     ? "bg-emerald-50 text-emerald-800 border-emerald-200"
                     : wsStatus === "RECONNECTING"
                     ? "bg-amber-50 text-amber-800 border-amber-200"
-                    : "bg-gray-100 text-gray-700 border-gray-300"
+                    : "bg-emerald-50 text-emerald-800 border-emerald-200"
                 }`}>
                   <span className={`h-2 w-2 rounded-full ${
                     wsStatus === "ONLINE"
                       ? "bg-emerald-500 animate-pulse"
                       : wsStatus === "RECONNECTING"
                       ? "bg-amber-500 animate-ping"
-                      : "bg-gray-400"
+                      : "bg-emerald-500"
                   }`} />
                   {wsStatus === "ONLINE"
                     ? "🟢 Terminal Online"
                     : wsStatus === "RECONNECTING"
-                    ? "🔴 Reconnecting..."
-                    : "⚪ Offline"}
+                    ? "🟡 Syncing Terminal..."
+                    : "🟢 Standee Terminal Active"}
                 </span>
 
                 <span className={`inline-flex items-center gap-1 rounded-full px-3 py-1.5 text-xs font-bold border ${

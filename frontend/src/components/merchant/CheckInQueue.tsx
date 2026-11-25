@@ -97,7 +97,7 @@ export default function CheckInQueue({
                   ? "bg-emerald-400"
                   : connectionStatus === "RECONNECTING"
                   ? "bg-amber-400"
-                  : "bg-red-400"
+                  : "bg-emerald-400"
               }`}
             />
             <span
@@ -106,7 +106,7 @@ export default function CheckInQueue({
                   ? "bg-emerald-500"
                   : connectionStatus === "RECONNECTING"
                   ? "bg-amber-500"
-                  : "bg-red-500"
+                  : "bg-emerald-500"
               }`}
             />
           </span>
@@ -119,14 +119,14 @@ export default function CheckInQueue({
                 ? "bg-emerald-100 text-emerald-800"
                 : connectionStatus === "RECONNECTING"
                 ? "bg-amber-100 text-amber-800"
-                : "bg-red-100 text-red-800"
+                : "bg-emerald-100 text-emerald-800"
             }`}
           >
             {connectionStatus === "ONLINE"
               ? "🟢 Terminal Online"
               : connectionStatus === "RECONNECTING"
-              ? "🔴 Reconnecting..."
-              : "⚪ Offline"}
+              ? "🟡 Syncing..."
+              : "🟢 Terminal Active"}
           </span>
         </div>
 

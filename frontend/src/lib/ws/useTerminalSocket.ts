@@ -32,6 +32,14 @@ export function useTerminalSocket(options: UseTerminalSocketOptions = {}) {
   const retryCountRef = useRef(0);
   const chimeAudioRef = useRef<HTMLAudioElement | null>(null);
 
+  // Stable reference to options to avoid reconnect loops on re-render
+  const optionsRef = useRef(options);
+  useEffect(() => {
+    optionsRef.current = options;
+  });
+
+  const { merchantId, customerId } = options;
+
   // Lazy initialize HTML5 audio element for merchant terminal chime
   useEffect(() => {
     if (typeof window !== "undefined") {
@@ -65,8 +73,8 @@ export function useTerminalSocket(options: UseTerminalSocketOptions = {}) {
     const token = getAccessToken() || "";
     const params = new URLSearchParams();
     if (token) params.set("token", token);
-    if (options.merchantId) params.set("merchantId", options.merchantId);
-    if (options.customerId) params.set("customerId", options.customerId);
+    if (merchantId) params.set("merchantId", merchantId);
+    if (customerId) params.set("customerId", customerId);
 
     const wsUrl = `${WS_BASE_URL}?${params.toString()}`;
 
@@ -92,23 +100,24 @@ export function useTerminalSocket(options: UseTerminalSocketOptions = {}) {
           const data = JSON.parse(event.data);
           const eventType = data.event;
           const payload = data.payload || data;
+          const currentOptions = optionsRef.current;
 
           if (eventType === "checkin.new" || eventType === "new_scan") {
             playChime();
-            options.onCheckInNew?.(payload);
+            currentOptions.onCheckInNew?.(payload);
           } else if (eventType === "checkin.approved" || eventType === "visit_approved") {
             playApprovalBell();
-            options.onCheckInApproved?.(payload);
+            currentOptions.onCheckInApproved?.(payload);
           } else if (eventType === "checkin.rejected" || eventType === "visit_rejected") {
             playRejectBuzz();
-            options.onCheckInRejected?.(payload);
+            currentOptions.onCheckInRejected?.(payload);
           } else if (eventType === "reward_burned") {
             playMilestoneFanfare();
-            options.onRewardBurned?.(payload);
+            currentOptions.onRewardBurned?.(payload);
           } else if (eventType === "qr_rotated") {
-            options.onQrRotated?.(payload);
+            currentOptions.onQrRotated?.(payload);
           } else if (eventType === "queue_updated") {
-            options.onQueueUpdated?.(payload);
+            currentOptions.onQueueUpdated?.(payload);
           }
         } catch {
           // Ignore non-json frames
@@ -120,13 +129,22 @@ export function useTerminalSocket(options: UseTerminalSocketOptions = {}) {
         if (pingIntervalRef.current) clearInterval(pingIntervalRef.current);
 
         // Exponential backoff reconnect: 1s, 2s, 4s, 8s, up to max 15s
-        const backoffMs = Math.min(1000 * Math.pow(2, retryCountRef.current), 15000);
-        retryCountRef.current++;
+        if (retryCountRef.current < 5) {
+          const backoffMs = Math.min(1000 * Math.pow(2, retryCountRef.current), 15000);
+          retryCountRef.current++;
 
-        if (reconnectTimeoutRef.current) clearTimeout(reconnectTimeoutRef.current);
-        reconnectTimeoutRef.current = setTimeout(() => {
-          connect();
-        }, backoffMs);
+          if (reconnectTimeoutRef.current) clearTimeout(reconnectTimeoutRef.current);
+          reconnectTimeoutRef.current = setTimeout(() => {
+            connect();
+          }, backoffMs);
+        } else {
+          // If backend is sleeping/suspended, back off calmly to every 30s
+          if (reconnectTimeoutRef.current) clearTimeout(reconnectTimeoutRef.current);
+          reconnectTimeoutRef.current = setTimeout(() => {
+            retryCountRef.current = 0;
+            connect();
+          }, 30000);
+        }
       };
 
       ws.onerror = () => {
@@ -135,7 +153,7 @@ export function useTerminalSocket(options: UseTerminalSocketOptions = {}) {
     } catch {
       setIsConnected(false);
     }
-  }, [options, playChime]);
+  }, [merchantId, customerId, playChime]);
 
   useEffect(() => {
     connect();
@@ -156,7 +174,11 @@ export function useTerminalSocket(options: UseTerminalSocketOptions = {}) {
     }
   }, []);
 
-  const wsStatus: "ONLINE" | "RECONNECTING" | "OFFLINE" = isConnected ? "ONLINE" : (retryCountRef.current > 3 ? "OFFLINE" : "RECONNECTING");
+  const wsStatus: "ONLINE" | "RECONNECTING" | "OFFLINE" = isConnected
+    ? "ONLINE"
+    : retryCountRef.current > 0 && retryCountRef.current < 5
+    ? "RECONNECTING"
+    : "OFFLINE";
 
   return {
     isConnected,
